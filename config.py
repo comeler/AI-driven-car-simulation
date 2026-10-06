@@ -34,17 +34,17 @@ CAR_WIDTH = 20
 # the others are simply ignored, so you can leave every value set and just
 # flip TRACK_SHAPE to try a different one.
 # ===========================================================================
-TRACK_SHAPE = "rounded_rect"
+TRACK_SHAPE = "wavy"
 
 TRACK_CENTER_X = SCREEN_WIDTH / 2
 TRACK_CENTER_Y = SCREEN_HEIGHT / 2
 TRACK_NUM_POINTS = 100            # how many points make up the track's centerline
 TRACK_CLOCKWISE = True            # False = car drives the loop in the opposite direction
 
-TRACK_RX = 100                   # used by "oval", "wavy", "pinched"
-TRACK_RY = 100                    # used by "oval", "wavy", "pinched"
+TRACK_RX = 350                  # used by "oval", "wavy", "pinched"
+TRACK_RY = 200                   # used by "oval", "wavy", "pinched"
 
-TRACK_WOBBLE = 30               # used by "wavy" - keep well under TRACK_CORRIDOR_WIDTH
+TRACK_WOBBLE = 50               # used by "wavy" - keep well under TRACK_CORRIDOR_WIDTH
 TRACK_WOBBLE_FREQUENCY = 7        # used by "wavy" - number of wobbles per lap
 
 TRACK_RECT_WIDTH = 750            # used by "rounded_rect"
@@ -54,7 +54,7 @@ TRACK_CORNER_RADIUS = 70          # used by "rounded_rect"
 TRACK_NUM_PINCHES = 3             # used by "pinched"
 TRACK_PINCH_STRENGTH = 0.25       # used by "pinched" - keep modest, see track.py's caution note
 
-TRACK_CORRIDOR_WIDTH = 50     # distance between inner and outer walls, all shapes
+TRACK_CORRIDOR_WIDTH = 80     # distance between inner and outer walls, all shapes
 TRACK_NUM_CHECKPOINTS = 24
 TRACK_CHECKPOINT_RADIUS = 50      # how close the car must get to "hit" a checkpoint
 
@@ -67,9 +67,9 @@ SENSOR_RANGE = 250
 # ===========================================================================
 # REWARD SHAPING
 # ===========================================================================
-REWARD_PROGRESS_SCALE = 0.2        # reward per pixel closer to the next checkpoint, this frame
+REWARD_PROGRESS_SCALE = 0.25        # reward per pixel closer to the next checkpoint, this frame
 REWARD_PER_FRAME_PENALTY = -0.01   # constant per-frame cost, discourages idling
-REWARD_CHECKPOINT_BONUS = 10.0
+REWARD_CHECKPOINT_BONUS = 20.0
 REWARD_OFF_TRACK_PENALTY = -70.0
 
 # ===========================================================================
@@ -81,9 +81,9 @@ HIDDEN_SIZE = 12
 # GENETIC ALGORITHM
 # ===========================================================================
 POP_SIZE = 60
-NUM_GENERATIONS = 1500        # how many generations THIS run performs
-MUTATION_RATE = 0.15         # probability each individual weight gets mutated
-MUTATION_STRENGTH = 0.3      # size of the random nudge when it does
+NUM_GENERATIONS = 150        # how many generations THIS run performs
+MUTATION_RATE = 0.05         # probability each individual weight gets mutated
+MUTATION_STRENGTH = 0.01      # size of the random nudge when it does
 ELITE_FRACTION = 0.1         # fraction of the parent pool cloned unchanged each generation
 HOF_SIZE = 20                # how many all-time-best networks are kept and bred from
 
