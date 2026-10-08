@@ -25,11 +25,6 @@ def draw(screen, env, sensor_readings, on_track):
     if len(env.track.outer) > 1:
         pygame.draw.lines(screen, (200, 200, 200), True, env.track.outer, 2)
 
-    for cx, cy in env.track.checkpoints:
-        pygame.draw.circle(screen, (60, 140, 60), (int(cx), int(cy)), 4)
-    next_cp = env.track.checkpoints[env.progress.next_checkpoint]
-    pygame.draw.circle(screen, (255, 255, 0), (int(next_cp[0]), int(next_cp[1])), 7, 2)
-
     if len(env.car.trajectory) > 1:
         pygame.draw.lines(screen, (90, 90, 90), False, env.car.trajectory, 2)
 

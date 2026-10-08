@@ -12,7 +12,7 @@ import math
 
 import config as cfg
 from car import Car
-from track import build_track_from_config, ProgressTracker
+from track import build_track_from_config, LapProgress
 
 
 # Each entry: (accelerate, brake, turn_left, turn_right)
@@ -35,11 +35,10 @@ class CarEnv:
 
         self.track = build_track_from_config(cfg)
 
-        # Start on the track's first checkpoint, facing toward the second -
-        # works for any track shape, since checkpoints are evenly spaced
-        # samples of the original centerline.
-        self._start_x, self._start_y = self.track.checkpoints[0]
-        next_x, next_y = self.track.checkpoints[1]
+        # Start at the first centerline point, facing along the track -
+        # works for any track shape and either direction (clockwise flag).
+        self._start_x, self._start_y = self.track.centerline[0]
+        next_x, next_y = self.track.centerline[1]
         self._start_angle = math.atan2(next_y - self._start_y, next_x - self._start_x)
 
         self.sensor_angles_deg = cfg.SENSOR_ANGLES_DEG
@@ -59,35 +58,30 @@ class CarEnv:
             max_reverse_speed=cfg.CAR_MAX_REVERSE_SPEED, turn_rate=cfg.CAR_TURN_RATE,
             length=cfg.CAR_LENGTH, width=cfg.CAR_WIDTH,
         )
-        self.progress = ProgressTracker(self.track, checkpoint_radius=cfg.TRACK_CHECKPOINT_RADIUS)
+        self.progress = LapProgress(self.track)
+        self.progress.reset(self.car.x, self.car.y)
         self.step_count = 0
         return self._get_state()
 
     def step(self, action):
         """Apply one action for one frame. Returns (state, reward, done, info)."""
         accelerate, brake, turn_left, turn_right = ACTIONS[action]
-
-        # Distance to the current target checkpoint BEFORE moving, so we can
-        # reward the car for closing that distance this frame.
-        target = self.track.checkpoints[self.progress.next_checkpoint]
-        dist_before = math.hypot(self.car.x - target[0], self.car.y - target[1])
-
         self.car.update(self.dt, accelerate, brake, turn_left, turn_right)
         self.step_count += 1
 
-        dist_after = math.hypot(self.car.x - target[0], self.car.y - target[1])
+        # delta = signed forward distance traveled along the track this
+        # frame (continuous projection onto the nearest point of the
+        # centerline curve - NOT distance to any fixed checkpoint, so lateral
+        # position / which line through a corner the car takes is free).
+        delta, lap_completed = self.progress.update(self.car.x, self.car.y)
         on_track = self.track.is_on_track(self.car.x, self.car.y)
-
-        prev_checkpoint = self.progress.next_checkpoint
-        self.progress.update(self.car.x, self.car.y)
-        checkpoint_hit = self.progress.next_checkpoint != prev_checkpoint
 
         # --- Reward shaping (constants from config.py) ---
         reward = 0.0
-        reward += (dist_before - dist_after) * cfg.REWARD_PROGRESS_SCALE
+        reward += delta * cfg.REWARD_PROGRESS_SCALE
         reward += cfg.REWARD_PER_FRAME_PENALTY
-        if checkpoint_hit:
-            reward += cfg.REWARD_CHECKPOINT_BONUS
+        if lap_completed:
+            reward += cfg.REWARD_LAP_BONUS
 
         done = False
         if not on_track:
@@ -99,13 +93,14 @@ class CarEnv:
         info = {
             "on_track": on_track,
             "laps_completed": self.progress.laps_completed,
-            "checkpoint_hit": checkpoint_hit,
+            "lap_completed": lap_completed,
         }
         return self._get_state(), reward, done, info
 
     def _get_state(self):
         """Build the normalized state vector the network will see:
-        [sensor distances (0-1), speed (-1 to 1), angle to next checkpoint (-1 to 1)]"""
+        [sensor distances (0-1), speed (-1 to 1), heading misalignment with
+        the track's local direction of travel (-1 to 1)]"""
         sensors = self.track.get_sensor_readings(
             self.car.x, self.car.y, self.car.angle,
             self.sensor_angles_deg, self.sensor_range,
@@ -114,9 +109,7 @@ class CarEnv:
 
         normalized_speed = self.car.speed / self.car.max_speed
 
-        target = self.track.checkpoints[self.progress.next_checkpoint]
-        target_angle = math.atan2(target[1] - self.car.y, target[0] - self.car.x)
-        angle_diff = (target_angle - self.car.angle + math.pi) % (2 * math.pi) - math.pi
+        angle_diff = (self.progress.track_heading - self.car.angle + math.pi) % (2 * math.pi) - math.pi
         normalized_angle_diff = angle_diff / math.pi
 
         return normalized_sensors + [normalized_speed, normalized_angle_diff]

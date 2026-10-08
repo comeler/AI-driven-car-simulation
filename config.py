@@ -34,12 +34,12 @@ CAR_WIDTH = 20
 # the others are simply ignored, so you can leave every value set and just
 # flip TRACK_SHAPE to try a different one.
 # ===========================================================================
-TRACK_SHAPE = "wavy"
+TRACK_SHAPE = "oval"
 
 TRACK_CENTER_X = SCREEN_WIDTH / 2
 TRACK_CENTER_Y = SCREEN_HEIGHT / 2
 TRACK_NUM_POINTS = 100            # how many points make up the track's centerline
-TRACK_CLOCKWISE = True            # False = car drives the loop in the opposite direction
+TRACK_CLOCKWISE = False            # False = car drives the loop in the opposite direction
 
 TRACK_RX = 350                  # used by "oval", "wavy", "pinched"
 TRACK_RY = 200                   # used by "oval", "wavy", "pinched"
@@ -55,13 +55,13 @@ TRACK_NUM_PINCHES = 3             # used by "pinched"
 TRACK_PINCH_STRENGTH = 0.25       # used by "pinched" - keep modest, see track.py's caution note
 
 TRACK_CORRIDOR_WIDTH = 80     # distance between inner and outer walls, all shapes
-TRACK_NUM_CHECKPOINTS = 24
-TRACK_CHECKPOINT_RADIUS = 50      # how close the car must get to "hit" a checkpoint
+#TRACK_NUM_CHECKPOINTS = 24
+#TRACK_CHECKPOINT_RADIUS = 50      # how close the car must get to "hit" a checkpoint
 
 # ===========================================================================
 # SENSORS
 # ===========================================================================
-SENSOR_ANGLES_DEG = (-70, -30, 0, 30, 70)
+SENSOR_ANGLES_DEG = (-70, -35,-15, 0, 15, 35, 70)  #adding sensors is possible
 SENSOR_RANGE = 250
 
 # ===========================================================================
@@ -69,21 +69,22 @@ SENSOR_RANGE = 250
 # ===========================================================================
 REWARD_PROGRESS_SCALE = 0.25        # reward per pixel closer to the next checkpoint, this frame
 REWARD_PER_FRAME_PENALTY = -0.01   # constant per-frame cost, discourages idling
-REWARD_CHECKPOINT_BONUS = 20.0
+#REWARD_CHECKPOINT_BONUS = 20.0
+REWARD_LAP_BONUS = 0.0
 REWARD_OFF_TRACK_PENALTY = -70.0
 
 # ===========================================================================
 # NEURAL NETWORK
 # ===========================================================================
-HIDDEN_SIZE = 12
+HIDDEN_SIZE = 14    #number of neurons
 
 # ===========================================================================
 # GENETIC ALGORITHM
 # ===========================================================================
 POP_SIZE = 60
 NUM_GENERATIONS = 150        # how many generations THIS run performs
-MUTATION_RATE = 0.05         # probability each individual weight gets mutated
-MUTATION_STRENGTH = 0.01      # size of the random nudge when it does
+MUTATION_RATE = 0.3         # probability each individual weight gets mutated
+MUTATION_STRENGTH = 0.2      # size of the random nudge when it does
 ELITE_FRACTION = 0.1         # fraction of the parent pool cloned unchanged each generation
 HOF_SIZE = 20                # how many all-time-best networks are kept and bred from
 

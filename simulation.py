@@ -10,7 +10,7 @@ import pygame
 
 import config as cfg
 from car import Car
-from track import build_track_from_config, ProgressTracker
+from track import build_track_from_config, LapProgress
 
 
 class Simulation:
@@ -23,11 +23,11 @@ class Simulation:
         self.clock = pygame.time.Clock()
 
         self.track = build_track_from_config(cfg)
-        self.progress = ProgressTracker(self.track, checkpoint_radius=cfg.TRACK_CHECKPOINT_RADIUS)
+        self.progress = LapProgress(self.track)
 
-        # Start on the track's first checkpoint, facing toward the second.
-        start_x, start_y = self.track.checkpoints[0]
-        next_x, next_y = self.track.checkpoints[1]
+        # Start at the first centerline point, facing along the track.
+        start_x, start_y = self.track.centerline[0]
+        next_x, next_y = self.track.centerline[1]
         start_angle = math.atan2(next_y - start_y, next_x - start_x)
         self.car = Car(
             x=start_x, y=start_y, angle=start_angle,
@@ -36,6 +36,7 @@ class Simulation:
             max_reverse_speed=cfg.CAR_MAX_REVERSE_SPEED, turn_rate=cfg.CAR_TURN_RATE,
             length=cfg.CAR_LENGTH, width=cfg.CAR_WIDTH,
         )
+        self.progress.reset(self.car.x, self.car.y)
 
         self.sensor_angles_deg = cfg.SENSOR_ANGLES_DEG
         self.sensor_range = cfg.SENSOR_RANGE
@@ -48,7 +49,7 @@ class Simulation:
         self.car_color_off_track = (220, 60, 60)
         self.trajectory_color = (90, 90, 90)
         self.wall_color = (200, 200, 200)
-        self.checkpoint_color = (60, 140, 60)
+        self.centerline_color = (80, 80, 150)
         self.sensor_color = (255, 210, 0)
 
     def handle_input(self):
@@ -59,9 +60,9 @@ class Simulation:
         turn_right = keys[pygame.K_RIGHT] or keys[pygame.K_d]
         return accelerate, brake, turn_left, turn_right
 
-    def draw_boundary(self, points, color):
+    def draw_boundary(self, points, color, width=2):
         if len(points) > 1:
-            pygame.draw.lines(self.screen, color, True, points, 2)
+            pygame.draw.lines(self.screen, color, True, points, width)
 
     def draw_sensors(self, readings):
         for offset_deg, dist in zip(self.sensor_angles_deg, readings):
@@ -76,12 +77,7 @@ class Simulation:
 
         self.draw_boundary(self.track.inner, self.wall_color)
         self.draw_boundary(self.track.outer, self.wall_color)
-
-        for cx, cy in self.track.checkpoints:
-            pygame.draw.circle(self.screen, self.checkpoint_color, (int(cx), int(cy)), 4)
-        # Highlight the checkpoint the car is currently heading toward
-        next_cp = self.track.checkpoints[self.progress.next_checkpoint]
-        pygame.draw.circle(self.screen, (255, 255, 0), (int(next_cp[0]), int(next_cp[1])), 7, 2)
+        self.draw_boundary(self.track.centerline, self.centerline_color, width=1)
 
         if len(self.car.trajectory) > 1:
             pygame.draw.lines(self.screen, self.trajectory_color, False, self.car.trajectory, 2)

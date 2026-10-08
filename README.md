@@ -68,7 +68,7 @@ To continue training from a previous run instead of starting fresh, set
 
 Four shapes are available out of the box (`config.TRACK_SHAPE`): `"oval"`,
 `"wavy"`, `"rounded_rect"`, `"pinched"`. See the comments in `config.py` for
-each shape's parameters.
+each shape's parameters. The track can be driven both ways.
 
 ## License
 
@@ -76,8 +76,7 @@ MIT — see `LICENSE`.
 
 ## Potential evolutions / errors
 
-- **evaluation.py**: This function is supposed to return a quick evaluation of the performence of the best ever trained networks, i didn't dig ito it but the results always seems weard, is seems like it just evaluates the singel best one and not the 20 best ones for exemple.
-- **CLOCKWISE or reverse**: there is a setting in config;py for the way the track is suppoed to work. It works when playing manualy, but the neural network can't manage to train when it goes counterclockwise.
+
+
 - **gradient descent**: Optimising the training with a gradient descent would be a great evolution in this application.
-- **more sensors**: adding sensors could make it easier to adapt a single nn to different tracks.
-- **removing Checkpoints**: one of the best evolutions would be to find and implement alternatives to the checkponts that in some cases bring the car away from the perfect trajectory.
+-**finish ling bug**: If the reward_lap_bonus is positiv, the car keeps going back to accumulate points without having to go arrount the hall track, this will be fixed

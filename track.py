@@ -1,9 +1,9 @@
 """
 Track: a closed circuit represented by two boundary polylines (inner wall and
-outer wall) plus a series of checkpoints for measuring progress around the
-loop. The Track class only cares about these two polylines + checkpoints -
-how they were generated doesn't matter, so you can hand-edit inner/outer
-later to build arbitrary (non-oval) track shapes.
+outer wall) plus the centerline itself. Progress is measured by projecting
+the car's position onto the NEAREST point anywhere on the centerline curve
+(not fixed checkpoints), so a car can hug the inside of a corner and still
+get full forward-progress credit - no bias toward any particular line.
 """
 
 import math
@@ -88,20 +88,28 @@ def generate_pinched_loop_centerline(cx, cy, rx, ry, num_pinches=3, pinch_streng
     return points if clockwise else _flip_direction(points)
 
 
-def _resample_uniform(points, num_points):
-    """Resample a closed polyline to num_points, evenly spaced by arc length.
-    Needed because a plain parametric oval (equal steps in angle t) packs
-    points closer together near the ends of the major axis and further apart
-    near the ends of the minor axis - left as-is, that uneven spacing would
-    make checkpoints unevenly spaced too, which is exactly what caused a bug
-    below (see ProgressTracker)."""
+def _cumulative_distances(points):
+    """Cumulative arc length at each point of a closed polyline. Index i
+    gives the distance traveled along the loop to reach points[i]; the final
+    entry (index len(points)) is the total perimeter length."""
     n = len(points)
     cumulative = [0.0]
     for i in range(1, n + 1):
         p0, p1 = points[(i - 1) % n], points[i % n]
         cumulative.append(cumulative[-1] + math.hypot(p1[0] - p0[0], p1[1] - p0[1]))
+    return cumulative
+
+
+def _resample_uniform(points, num_points):
+    """Resample a closed polyline to num_points, evenly spaced by arc length.
+    Needed because a plain parametric oval (equal steps in angle t) packs
+    points closer together near the ends of the major axis and further apart
+    near the ends of the minor axis - left uneven, that would make arc-length
+    progress jump in uneven-sized steps around the lap."""
+    cumulative = _cumulative_distances(points)
     total_length = cumulative[-1]
     step = total_length / num_points
+    n = len(points)
 
     resampled = []
     seg = 0
@@ -117,9 +125,22 @@ def _resample_uniform(points, num_points):
     return resampled
 
 
+def _signed_area(polygon):
+    """Positive/negative tells which rotational direction a closed polygon
+    winds in. Used so inner/outer wall assignment is correct no matter which
+    direction the centerline was generated in (clockwise=True or False)."""
+    area = 0.0
+    n = len(polygon)
+    for i in range(n):
+        x1, y1 = polygon[i]
+        x2, y2 = polygon[(i + 1) % n]
+        area += x1 * y2 - x2 * y1
+    return area / 2.0
+
+
 def _offset_centerline(centerline, width):
-    """Offset a closed centerline left/right by width/2 to build two boundary
-    polylines. Only used to bootstrap a track from a centerline."""
+    orientation = 1.0 if _signed_area(centerline) > 0 else -1.0
+
     n = len(centerline)
     inner, outer = [], []
     for i in range(n):
@@ -127,10 +148,9 @@ def _offset_centerline(centerline, width):
         p_next = centerline[(i + 1) % n]
         dx, dy = p_next[0] - p_prev[0], p_next[1] - p_prev[1]
         length = math.hypot(dx, dy) or 1.0
-        nx, ny = -dy / length, dx / length  # normal (perpendicular) direction
+        nx, ny = -dy / length, dx / length
+        nx, ny = nx * orientation, ny * orientation
         cx, cy = centerline[i]
-        # Note: for this parametrization, +normal points toward the track
-        # center, so it defines the inner wall (and -normal the outer wall).
         inner.append((cx + nx * width / 2, cy + ny * width / 2))
         outer.append((cx - nx * width / 2, cy - ny * width / 2))
     return inner, outer
@@ -175,21 +195,21 @@ def _point_in_polygon(x, y, polygon):
 
 
 class Track:
-    def __init__(self, inner, outer, checkpoints):
+    def __init__(self, inner, outer, centerline):
         self.inner = inner              # list of (x, y) - inner wall
         self.outer = outer              # list of (x, y) - outer wall
-        self.checkpoints = checkpoints  # list of (x, y) - progress markers, in order
+        self.centerline = centerline    # list of (x, y) - evenly arc-length-spaced
+        self.cumulative_distances = _cumulative_distances(centerline)
+        self.total_length = self.cumulative_distances[-1]   # perimeter length (one lap)
 
     @classmethod
-    def from_centerline(cls, centerline, width=120, num_checkpoints=24):
+    def from_centerline(cls, centerline, width=120):
         """Build a Track by offsetting a centerline. Convenience constructor -
-        the resulting Track only stores/uses inner, outer and checkpoints, so
+        the resulting Track only stores/uses inner, outer and centerline, so
         you could equally construct one by hand-picking boundary points."""
         centerline = _resample_uniform(centerline, len(centerline))
         inner, outer = _offset_centerline(centerline, width)
-        step = max(1, len(centerline) // num_checkpoints)
-        checkpoints = [centerline[i] for i in range(0, len(centerline), step)]
-        return cls(inner, outer, checkpoints)
+        return cls(inner, outer, centerline)
 
     def is_on_track(self, x, y):
         """True if (x, y) is in the drivable corridor: inside the outer wall
@@ -205,6 +225,41 @@ class Track:
                 a, b = boundary[i], boundary[(i + 1) % n]
                 best = min(best, _point_segment_distance(x, y, a[0], a[1], b[0], b[1]))
         return best
+
+    def project_to_centerline(self, x, y):
+        """Find the closest point ANYWHERE along the centerline curve (not
+        just at fixed samples) to (x, y). Returns (arc_length, heading,
+        lateral_offset):
+          - arc_length: how far along the lap that closest point is (wraps
+            at self.total_length)
+          - heading: the track's direction of travel at that point (radians)
+          - lateral_offset: signed sideways distance from the centerline
+            there. Not used in the reward - available if you later want to
+            softly discourage hugging a wall too tightly."""
+        n = len(self.centerline)
+        best_dist = float("inf")
+        best_arc_length = 0.0
+        best_heading = 0.0
+        best_lateral = 0.0
+
+        for i in range(n):
+            ax, ay = self.centerline[i]
+            bx, by = self.centerline[(i + 1) % n]
+            abx, aby = bx - ax, by - ay
+            seg_len = math.hypot(abx, aby) or 1e-9
+            t = ((x - ax) * abx + (y - ay) * aby) / (seg_len ** 2)
+            t = max(0.0, min(1.0, t))
+            closest_x, closest_y = ax + t * abx, ay + t * aby
+            dist = math.hypot(x - closest_x, y - closest_y)
+
+            if dist < best_dist:
+                best_dist = dist
+                best_arc_length = self.cumulative_distances[i] + t * seg_len
+                best_heading = math.atan2(aby, abx)
+                tx, ty = abx / seg_len, aby / seg_len
+                best_lateral = tx * (y - closest_y) - ty * (x - closest_x)
+
+        return best_arc_length, best_heading, best_lateral
 
     def cast_sensor(self, x, y, angle, max_range=300):
         """Cast one ray from (x, y) at `angle`, return distance to the
@@ -229,33 +284,58 @@ class Track:
         ]
 
 
-class ProgressTracker:
-    """Tracks how far a car has progressed around a Track's checkpoints.
-    Kept separate from Track itself since progress is per-car, per-run state,
-    not a property of the track layout."""
+class LapProgress:
+    """Tracks a car's continuous progress along a Track's centerline, using
+    arc-length projection instead of fixed checkpoints - so progress reflects
+    forward movement along the track regardless of the car's lateral
+    position (no bias toward hugging the centerline, no bias against cutting
+    corners). Shared by CarEnv (for the reward) and Simulation (for the HUD)
+    so the wrap-around-the-start-line math only lives in one place."""
 
-    def __init__(self, track, checkpoint_radius=40):
+    def __init__(self, track):
         self.track = track
-        # The car starts AT checkpoint 0 (the start line), so it's already
-        # "passed" it - begin targeting checkpoint 1 instead. Otherwise the
-        # car gets a free checkpoint bonus at reset() without moving at all.
-        self.next_checkpoint = 1 % len(track.checkpoints)
+        self.total_progress = 0.0   # cumulative, unwrapped distance traveled forward
         self.laps_completed = 0
-        self.checkpoint_radius = checkpoint_radius
+        self.track_heading = 0.0
+        self.lateral_offset = 0.0
+        self._last_arc_length = 0.0
+
+    def reset(self, x, y):
+        arc_length, heading, lateral = self.track.project_to_centerline(x, y)
+        self._last_arc_length = arc_length
+        self.track_heading = heading
+        self.lateral_offset = lateral
+        self.total_progress = 0.0
+        self.laps_completed = 0
 
     def update(self, x, y):
-        target = self.track.checkpoints[self.next_checkpoint]
-        dist = math.hypot(x - target[0], y - target[1])
-        if dist < self.checkpoint_radius:
-            self.next_checkpoint += 1
-            if self.next_checkpoint >= len(self.track.checkpoints):
-                self.next_checkpoint = 0
-                self.laps_completed += 1
+        """Advance progress to the car's new position. Returns (delta,
+        lap_completed): delta is the signed forward distance traveled this
+        step (negative if the car moved backward along the track)."""
+        arc_length, heading, lateral = self.track.project_to_centerline(x, y)
+        self.track_heading = heading
+        self.lateral_offset = lateral
+
+        delta = arc_length - self._last_arc_length
+        half_lap = self.track.total_length / 2
+        if delta < -half_lap:
+            delta += self.track.total_length
+        elif delta > half_lap:
+            delta -= self.track.total_length
+        self._last_arc_length = arc_length
+
+        prev_laps = int(self.total_progress // self.track.total_length)
+        self.total_progress += delta
+        new_laps = int(self.total_progress // self.track.total_length)
+        lap_completed = new_laps > prev_laps
+        self.laps_completed = new_laps
+
+        return delta, lap_completed
 
     @property
     def progress_fraction(self):
         """Progress within the current lap, as a 0-1 fraction."""
-        return self.next_checkpoint / len(self.track.checkpoints)
+        return (self.total_progress % self.track.total_length) / self.track.total_length
 
 
 def build_track_from_config(cfg):
@@ -293,5 +373,4 @@ def build_track_from_config(cfg):
             "use 'oval', 'wavy', 'rounded_rect' or 'pinched'."
         )
 
-    return Track.from_centerline(centerline, width=cfg.TRACK_CORRIDOR_WIDTH,
-                                  num_checkpoints=cfg.TRACK_NUM_CHECKPOINTS)
+    return Track.from_centerline(centerline, width=cfg.TRACK_CORRIDOR_WIDTH)
