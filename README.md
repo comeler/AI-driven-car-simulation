@@ -94,8 +94,19 @@ To continue training from a previous run instead of starting fresh, set
 
 Four shapes are available out of the box (`config.TRACK_SHAPE`): `"oval"`,
 `"wavy"`, `"rounded_rect"`, `"pinched"`. See the comments in `config.py` for
-each shape's parameters.
+each shape's parameters. The track can be driven both ways.
 
 ## License
 
+<<<<<<< HEAD
 MIT — see `LICENSE`.
+=======
+MIT — see `LICENSE`.
+
+## Potential evolutions / errors
+
+
+
+- **gradient descent**: Optimising the training with a gradient descent would be a great evolution in this application.
+-**finish ling bug**: If the reward_lap_bonus is positiv, the car keeps going back to accumulate points without having to go arrount the hall track, this will be fixed
+>>>>>>> 4a4641a72f338d950f415486d7719f82ffc2faec

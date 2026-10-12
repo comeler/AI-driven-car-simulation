@@ -284,12 +284,17 @@ class Track:
         ]
 
 
+<<<<<<< HEAD
 class ProgressTracker:
+=======
+class LapProgress:
+>>>>>>> 4a4641a72f338d950f415486d7719f82ffc2faec
     """Tracks a car's continuous progress along a Track's centerline, using
     arc-length projection instead of fixed checkpoints - so progress reflects
     forward movement along the track regardless of the car's lateral
     position (no bias toward hugging the centerline, no bias against cutting
     corners). Shared by CarEnv (for the reward) and Simulation (for the HUD)
+<<<<<<< HEAD
     so the wrap-around-the-start-line math only lives in one place.
 
     (Same name as the old checkpoint-based class, so existing imports keep
@@ -300,6 +305,13 @@ class ProgressTracker:
         self.track = track
         self.total_progress = 0.0   # cumulative, unwrapped distance traveled forward
         self.max_progress = 0.0     # furthest forward progress ever reached (laps are counted from this)
+=======
+    so the wrap-around-the-start-line math only lives in one place."""
+
+    def __init__(self, track):
+        self.track = track
+        self.total_progress = 0.0   # cumulative, unwrapped distance traveled forward
+>>>>>>> 4a4641a72f338d950f415486d7719f82ffc2faec
         self.laps_completed = 0
         self.track_heading = 0.0
         self.lateral_offset = 0.0
@@ -311,7 +323,10 @@ class ProgressTracker:
         self.track_heading = heading
         self.lateral_offset = lateral
         self.total_progress = 0.0
+<<<<<<< HEAD
         self.max_progress = 0.0
+=======
+>>>>>>> 4a4641a72f338d950f415486d7719f82ffc2faec
         self.laps_completed = 0
 
     def update(self, x, y):
@@ -330,6 +345,7 @@ class ProgressTracker:
             delta -= self.track.total_length
         self._last_arc_length = arc_length
 
+<<<<<<< HEAD
         # Laps are counted from the FURTHEST point ever reached, not from the
         # current position. Otherwise a car could wiggle back and forth across
         # the start line and collect the lap bonus on every forward pass.
@@ -337,6 +353,11 @@ class ProgressTracker:
         self.total_progress += delta
         self.max_progress = max(self.max_progress, self.total_progress)
         new_laps = int(self.max_progress // self.track.total_length)
+=======
+        prev_laps = int(self.total_progress // self.track.total_length)
+        self.total_progress += delta
+        new_laps = int(self.total_progress // self.track.total_length)
+>>>>>>> 4a4641a72f338d950f415486d7719f82ffc2faec
         lap_completed = new_laps > prev_laps
         self.laps_completed = new_laps
 

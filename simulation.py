@@ -10,7 +10,7 @@ import pygame
 
 import config as cfg
 from car import Car
-from track import build_track_from_config, ProgressTracker
+from track import build_track_from_config, LapProgress
 
 
 class Simulation:
@@ -23,7 +23,11 @@ class Simulation:
         self.clock = pygame.time.Clock()
 
         self.track = build_track_from_config(cfg)
+<<<<<<< HEAD
         self.progress = ProgressTracker(self.track)
+=======
+        self.progress = LapProgress(self.track)
+>>>>>>> 4a4641a72f338d950f415486d7719f82ffc2faec
 
         # Start at the first centerline point, facing along the track.
         start_x, start_y = self.track.centerline[0]

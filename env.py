@@ -12,7 +12,7 @@ import math
 
 import config as cfg
 from car import Car
-from track import build_track_from_config, ProgressTracker
+from track import build_track_from_config, LapProgress
 
 
 # Each entry: (accelerate, brake, turn_left, turn_right)
@@ -63,7 +63,11 @@ class CarEnv:
             max_reverse_speed=cfg.CAR_MAX_REVERSE_SPEED, turn_rate=cfg.CAR_TURN_RATE,
             length=cfg.CAR_LENGTH, width=cfg.CAR_WIDTH,
         )
+<<<<<<< HEAD
         self.progress = ProgressTracker(self.track)
+=======
+        self.progress = LapProgress(self.track)
+>>>>>>> 4a4641a72f338d950f415486d7719f82ffc2faec
         self.progress.reset(self.car.x, self.car.y)
         self.step_count = 0
         return self._get_state()
@@ -86,7 +90,11 @@ class CarEnv:
         reward += delta * cfg.REWARD_PROGRESS_SCALE
         reward += cfg.REWARD_PER_FRAME_PENALTY
         if lap_completed:
+<<<<<<< HEAD
             reward += LAP_BONUS
+=======
+            reward += cfg.REWARD_LAP_BONUS
+>>>>>>> 4a4641a72f338d950f415486d7719f82ffc2faec
 
         done = False
         if not on_track:
