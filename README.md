@@ -6,7 +6,7 @@ required — just NumPy). Built as a learning project to understand both
 Python fundamentals and how reinforcement learning actually fits together,
 step by step.
 
-![Trained AI vs baseline policies](trajectories.png)
+![Trained AI vs baseline policies](trajectories_GD.png)
 
 ## What's in here
 
@@ -38,7 +38,7 @@ pip install -r requirements.txt
 ```bash
 python main.py              # manual play - drive with arrow keys / WASD
 python train.py              # train a population via the genetic algorithm
-python train_gradient.py              # train a population via the gradient descent algorithm
+python train_gradient.py     # train a population via the gradient descent algorithm
 python watch_best.py         # watch the best trained network drive
 python evaluate.py           # print performance metrics over many episodes
 python plot_trajectories.py  # save a trajectory comparison plot
@@ -98,15 +98,4 @@ each shape's parameters. The track can be driven both ways.
 
 ## License
 
-<<<<<<< HEAD
 MIT — see `LICENSE`.
-=======
-MIT — see `LICENSE`.
-
-## Potential evolutions / errors
-
-
-
-- **gradient descent**: Optimising the training with a gradient descent would be a great evolution in this application.
--**finish ling bug**: If the reward_lap_bonus is positiv, the car keeps going back to accumulate points without having to go arrount the hall track, this will be fixed
->>>>>>> 4a4641a72f338d950f415486d7719f82ffc2faec
