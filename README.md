@@ -1,7 +1,7 @@
 # Self-Driving Car Simulation — 2D Track + Neuroevolution
 
 A 2D car simulation where a small neural network learns to drive around a
-track, trained from scratch with a genetic algorithm (no TensorFlow/PyTorch
+track, trained from scratch with a genetic algorithm and with a gradientdescent algorithm (no TensorFlow/PyTorch
 required — just NumPy). Built as a learning project to understand both
 Python fundamentals and how reinforcement learning actually fits together,
 step by step.
@@ -38,6 +38,7 @@ pip install -r requirements.txt
 ```bash
 python main.py              # manual play - drive with arrow keys / WASD
 python train.py              # train a population via the genetic algorithm
+python train_gradient.py              # train a population via the gradient descent algorithm
 python watch_best.py         # watch the best trained network drive
 python evaluate.py           # print performance metrics over many episodes
 python plot_trajectories.py  # save a trajectory comparison plot
@@ -48,21 +49,46 @@ Training saves two things as it goes:
 - `hall_of_fame.npz` / `hall_of_fame.txt` — the top `HOF_SIZE` networks ever found, updated every generation
 
 To continue training from a previous run instead of starting fresh, set
-`START_MODE = "hall_of_fame"` in `config.py` and run `train.py` again.
+`START_MODE = "hall_of_fame"` in `config.py` and run `train.py` again. (same for both algorithms)
 
 ## How it works, briefly
 
-- **State** (what the network sees): 5 sensor distances (ray-cast to the
-  track walls), current speed, and the angle to the next checkpoint — 7
-  numbers, each normalized to roughly `[-1, 1]`.
+- **State** (what the network sees): one distance per sensor (rays cast to
+  the track walls; their number and angles are set by `SENSOR_ANGLES_DEG`
+  in `config.py`), the car's current speed, and the angle between the car's
+  heading and the direction of the track at its position. That is
+  `number of sensors + 2` values, each normalized to roughly `[-1, 1]`.
 - **Actions**: 5 discrete choices (accelerate straight / left / right, brake,
   coast).
-- **Reward**: positive for closing distance to the next checkpoint, a bonus
-  for reaching it, a penalty and episode end for driving off-track.
-- **Training**: no backpropagation — a population of networks is evaluated
-  by total reward per episode, and the next generation is bred from the
-  best networks ever found (crossover + mutation), repeated for many
-  generations.
+- **Progress & reward**: there are no checkpoints. Each step, the car's
+  position is projected onto the nearest point of the track's centerline,
+  and the forward distance travelled along the track is the main reward
+  signal. Because only forward progress counts, not the car's sideways
+  position, the car is free to cut corners and hug the inside line. There is
+  also a small per-step penalty (to discourage idling), a bonus for each lap
+  completed (counted once per lap, from the furthest point reached, so
+  wiggling back and forth over the start line earns nothing), and a penalty
+  plus episode end for driving off-track. All values are in `config.py`.
+- **Training**: two interchangeable methods, both configured entirely from
+  `config.py`, using the same network and the same environment:
+  - **Genetic algorithm** (`train.py`): no backpropagation. A population of
+    networks is evaluated by total reward per episode, and the next
+    generation is bred (crossover + mutation) from a Hall of Fame holding
+    the best distinct networks ever found, not just the last generation's
+    winners. The Hall of Fame is saved every generation, so a run can be
+    stopped and continued later with `START_MODE`.
+  - **Policy gradient / REINFORCE** (`train_gradient.py`): gradient descent.
+    The network outputs action probabilities and the car samples its actions
+    from them. After each batch of episodes, the weights are adjusted by
+    backpropagation so that actions followed by above-average returns become
+    more likely (with an entropy bonus to keep exploring, gradient clipping
+    for stability, and the Adam optimizer). The greedy policy (always the
+    highest-scoring action) is tested after each update, and the best
+    weights are saved. Settings are the `PG_*` values in `config.py`.
+- **Evaluation**: both methods save the best network to `best_weights.npy`,
+  which `watch_best.py`, `evaluate.py` and `plot_trajectories.py` load. This
+  means running one trainer overwrites the other's result, so rename the
+  file first if you want to keep it.
 
 ## Track shapes
 
@@ -73,11 +99,3 @@ each shape's parameters.
 ## License
 
 MIT — see `LICENSE`.
-
-## Potential evolutions / errors
-
-- **evaluation.py**: This function is supposed to return a quick evaluation of the performence of the best ever trained networks, i didn't dig ito it but the results always seems weard, is seems like it just evaluates the singel best one and not the 20 best ones for exemple.
-- **CLOCKWISE or reverse**: there is a setting in config;py for the way the track is suppoed to work. It works when playing manualy, but the neural network can't manage to train when it goes counterclockwise.
-- **gradient descent**: Optimising the training with a gradient descent would be a great evolution in this application.
-- **more sensors**: adding sensors could make it easier to adapt a single nn to different tracks.
-- **removing Checkpoints**: one of the best evolutions would be to find and implement alternatives to the checkponts that in some cases bring the car away from the perfect trajectory.

@@ -39,7 +39,7 @@ TRACK_SHAPE = "wavy"
 TRACK_CENTER_X = SCREEN_WIDTH / 2
 TRACK_CENTER_Y = SCREEN_HEIGHT / 2
 TRACK_NUM_POINTS = 100            # how many points make up the track's centerline
-TRACK_CLOCKWISE = True            # False = car drives the loop in the opposite direction
+TRACK_CLOCKWISE = False            # False = car drives the loop in the opposite direction
 
 TRACK_RX = 350                  # used by "oval", "wavy", "pinched"
 TRACK_RY = 200                   # used by "oval", "wavy", "pinched"
@@ -82,8 +82,8 @@ HIDDEN_SIZE = 12
 # ===========================================================================
 POP_SIZE = 60
 NUM_GENERATIONS = 150        # how many generations THIS run performs
-MUTATION_RATE = 0.05         # probability each individual weight gets mutated
-MUTATION_STRENGTH = 0.01      # size of the random nudge when it does
+MUTATION_RATE = 0.3         # probability each individual weight gets mutated
+MUTATION_STRENGTH = 0.2      # size of the random nudge when it does
 ELITE_FRACTION = 0.1         # fraction of the parent pool cloned unchanged each generation
 HOF_SIZE = 20                # how many all-time-best networks are kept and bred from
 
@@ -99,7 +99,7 @@ HOF_SIZE = 20                # how many all-time-best networks are kept and bred
 #                      the best networks ever found, continuing the
 #                      generation count instead of restarting it at 0.
 # ===========================================================================
-START_MODE = "hall_of_fame"
+START_MODE = "fresh"
 
 # ===========================================================================
 # EVALUATION / PLOTTING
@@ -113,3 +113,27 @@ PLOT_EPISODES_PER_POLICY = 3
 BEST_WEIGHTS_PATH = "best_weights.npy"   # single best-ever network (watch_best.py, evaluate.py, ...)
 HOF_PATH = "hall_of_fame.npz"            # top HOF_SIZE networks ever found, reloadable, updated every generation
 HOF_SUMMARY_PATH = "hall_of_fame.txt"    # same top HOF_SIZE networks, as a plain-text doc for YOU to read
+
+
+# ===========================================================================
+# POLICY GRADIENT (REINFORCE) - used by train_gradient.py
+# settings above it stay as they are and are simply ignored by this script).
+# ===========================================================================
+PG_NUM_UPDATES = 300            # gradient updates THIS run performs
+PG_EPISODES_PER_UPDATE = 8      # episodes driven (then averaged) per gradient step
+PG_LEARNING_RATE = 0.01         # Adam step size - the most sensitive setting; try 0.003 - 0.03
+PG_DISCOUNT = 0.99              # how much later rewards count vs immediate ones (0-1)
+PG_ENTROPY_COEF = 0.01          # exploration bonus; higher = keeps trying random actions longer
+PG_GRAD_CLIP = 1.0              # largest allowed gradient size per update (0 = no clipping)
+PG_EVAL_EVERY = 1               # test the greedy policy every N updates (saves weights if it's a record)
+PG_INIT_OUTPUT_SCALE = 0.1      # shrinks the output layer at a fresh start -> near-uniform first policy
+PG_SEED = None                  # None = different every run; an integer = reproducible run
+
+# "fresh"        -> start from random weights
+# "best_weights" -> start from the weights saved in PG_BEST_WEIGHTS_PATH (e.g. to keep training)
+PG_START_MODE = "best_weights"
+
+# WARNING: this is the same file watch_best.py / evaluate.py / plot_trajectories.py read, and
+# train_gradient.py OVERWRITES it as soon as it starts. To keep a genetic-algorithm result,
+# copy/rename that file first, or point this to a different filename.
+PG_BEST_WEIGHTS_PATH = "best_weights.npy"
